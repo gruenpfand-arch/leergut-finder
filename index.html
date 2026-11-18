@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Leergut-Finder</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1f7a4d">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root{--bg:#f5f6f2;--card:#fff;--ink:#1d2a22;--mute:#667068;--acc:#1f7a4d;--acc2:#e6f3ec;--line:#dde2db;--warn:#b4531a}
 @media (prefers-color-scheme:dark){:root{--bg:#141815;--card:#1d231f;--ink:#e8ede9;--mute:#9aa59d;--acc:#4fbf84;--acc2:#1f3328;--line:#2d352f;--warn:#e08a4d}}
@@ -69,7 +72,7 @@ textarea{min-height:100px;font-family:ui-monospace,monospace;font-size:13px}
     <input type="text" id="q" placeholder="Nummer oder Name suchen …">
     <div id="qres" style="margin-top:10px"></div>
   </div>
-  <div class="foot"><a href="#pflege">Liste pflegen</a></div>
+  <div class="foot"><button class="btn hidden" id="inst">App installieren</button><div class="note" id="instnote"></div><a href="#pflege">Liste pflegen</a></div>
 </div>
 
 <div id="admin" class="hidden">
@@ -236,6 +239,14 @@ $("load").onchange=async e=>{
   try{list=clean(JSON.parse(await f.text()));await persist();$("xstat").textContent="Datei geladen: "+list.length+" Einträge."}catch(err){$("xstat").textContent="Datei nicht lesbar."}
 };
 $("reset").onclick=async()=>{if(!confirm("Entwurf auf diesem Gerät verwerfen?"))return;await idb.del("draft");isDraft=false;await loadPublished();renderAdmin();search()};
+
+/* ---- Installieren (PWA) ---- */
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+let dip=null;
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();dip=e;$("inst").classList.remove("hidden")});
+$("inst").onclick=async()=>{if(!dip)return;dip.prompt();await dip.userChoice;dip=null;$("inst").classList.add("hidden")};
+window.addEventListener("appinstalled",()=>$("inst").classList.add("hidden"));
+if(/iphone|ipad/i.test(navigator.userAgent)&&!navigator.standalone)$("instnote").textContent="Installieren: Teilen-Symbol, dann „Zum Home-Bildschirm“.";
 
 /* ---- Laden ---- */
 async function loadPublished(){
