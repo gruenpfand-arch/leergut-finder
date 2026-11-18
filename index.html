@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leergut-Finder</title>
+<style>
+:root{--bg:#f5f6f2;--card:#fff;--ink:#1d2a22;--mute:#667068;--acc:#1f7a4d;--acc2:#e6f3ec;--line:#dde2db;--warn:#b4531a}
+@media (prefers-color-scheme:dark){:root{--bg:#141815;--card:#1d231f;--ink:#e8ede9;--mute:#9aa59d;--acc:#4fbf84;--acc2:#1f3328;--line:#2d352f;--warn:#e08a4d}}
+*{box-sizing:border-box}
+body{margin:0 auto;background:var(--bg);color:var(--ink);font:17px/1.4 system-ui,-apple-system,sans-serif;padding:16px;max-width:560px}
+h1{font-size:22px;margin:4px 0 14px;text-align:center}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
+.card h2{font-size:16px;margin:0 0 10px}
+button,input,textarea{font:inherit;color:inherit}
+.shoot{position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:var(--acc);color:#fff;border-radius:20px;padding:34px 16px;font-size:22px;font-weight:700;text-align:center;cursor:pointer}
+.shoot svg{width:46px;height:46px}
+.shoot input,.more input,.filebtn input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:100px}
+.shoot.busy{opacity:.6;pointer-events:none}
+.more{position:relative;overflow:hidden;display:block;text-align:center;margin-top:10px;color:var(--acc);font-weight:600;font-size:15px;padding:8px}
+.status{text-align:center;color:var(--mute);font-size:15px;margin:12px 0 0;min-height:20px}
+.hit{border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px;background:var(--card)}
+.hit.top{border:2px solid var(--acc)}
+.hit .lbl{font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:.5px}
+.hit .grid{display:flex;gap:12px;align-items:flex-end;margin-top:2px}
+.hit .nr{font-size:34px;font-weight:800;flex:1;line-height:1.1}
+.hit .pf{font-size:34px;font-weight:800;color:var(--acc);text-align:right;line-height:1.1}
+.hit .nm{font-size:17px;margin-top:6px}
+.hit .why{font-size:14px;color:var(--mute);margin-top:4px}
+.unsure{display:inline-block;font-size:13px;padding:2px 10px;border-radius:999px;background:var(--warn);color:#fff;margin-bottom:6px}
+.note{font-size:14px;color:var(--mute);margin-top:8px}
+.warn{color:var(--warn)}
+input[type=text],textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+textarea{min-height:100px;font-family:ui-monospace,monospace;font-size:13px}
+.btn{position:relative;overflow:hidden;display:inline-block;background:var(--acc2);color:var(--acc);border:0;border-radius:12px;padding:10px 14px;font-weight:600;cursor:pointer;font-size:15px}
+.btn.solid{background:var(--acc);color:#fff;width:100%}
+.addgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.addgrid .full{grid-column:1/-1}
+.row3{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.foot{text-align:center;margin:18px 0 6px}
+.foot a{color:var(--mute);font-size:14px}
+.hidden{display:none}
+.ent{border-top:1px solid var(--line);padding:10px 0}
+.ent:first-child{border-top:0}
+.ent .h{display:flex;gap:8px;align-items:baseline}
+.ent .h b{min-width:64px}
+.ent .h span{flex:1}
+.ent .h em{font-style:normal;font-weight:600}
+.ent small{display:block;color:var(--mute)}
+.ent .act{display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap}
+.refs{font-size:13px}
+.refs.none{color:var(--warn);font-weight:600}
+.x{border:0;background:none;color:var(--warn);font-size:15px;cursor:pointer}
+</style>
+</head>
+<body>
+
+<div id="driver">
+  <h1>Leergut-Finder</h1>
+  <label class="shoot" id="shoot">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg>
+    Kiste fotografieren
+    <input id="cam" type="file" accept="image/*" capture="environment">
+  </label>
+  <label class="more">oder Foto aus der Galerie wählen<input id="gal" type="file" accept="image/*"></label>
+  <div class="status" id="status"></div>
+  <div id="result" style="margin-top:12px"></div>
+  <div class="card" style="margin-top:6px">
+    <input type="text" id="q" placeholder="Nummer oder Name suchen …">
+    <div id="qres" style="margin-top:10px"></div>
+  </div>
+  <div class="foot"><a href="#pflege">Liste pflegen</a></div>
+</div>
+
+<div id="admin" class="hidden">
+  <h1>Leergut-Liste pflegen</h1>
+  <div class="card">
+    <div class="note" style="margin-top:0">Änderungen bleiben zuerst nur auf diesem Gerät (Entwurf). Zum Veröffentlichen: unten „data.json herunterladen“ und die Datei im GitHub-Repository ersetzen. Danach sehen alle Fahrer die neue Liste.<br>Pro Kiste am besten 2–3 Fotos aus verschiedenen Winkeln hinterlegen.</div>
+    <div class="note" id="draftinfo"></div>
+  </div>
+  <div class="card">
+    <h2>Neuer Eintrag</h2>
+    <div class="addgrid">
+      <input type="text" id="n_nr" placeholder="Leergutnummer">
+      <input type="text" id="n_pf" placeholder="Pfand (optional), z. B. 3,10" inputmode="decimal">
+      <input type="text" id="n_nm" class="full" placeholder="Bezeichnung, z. B. Kasten Jever 20×0,5 l">
+      <input type="text" id="n_mk" class="full" placeholder="Merkmale (optional)">
+    </div>
+    <button class="btn solid" id="add">Hinzufügen</button>
+    <div class="note" id="astat"></div>
+  </div>
+  <div class="card">
+    <h2>Einträge (<span id="cnt">0</span>)</h2>
+    <div id="tbl"></div>
+  </div>
+  <div class="card">
+    <h2>Liste importieren</h2>
+    <div class="note" style="margin:0 0 8px">Aus Excel einfügen. Spalten: Nummer · Bezeichnung · Pfand · Merkmale (Tab oder „;“ getrennt). Vorhandene Nummern bleiben samt Fotos erhalten.</div>
+    <textarea id="imp" placeholder="4711;Kasten Jever 20×0,5 l;3,10;grüner Kasten"></textarea>
+    <div class="row3"><button class="btn" id="impadd">Einfügen / aktualisieren</button></div>
+    <div class="note" id="istat"></div>
+  </div>
+  <div class="card">
+    <h2>Veröffentlichen</h2>
+    <div class="row3">
+      <button class="btn" id="dl">data.json herunterladen</button>
+      <label class="btn">data.json laden<input type="file" id="load" accept=".json,application/json"></label>
+      <button class="btn" id="reset">Entwurf verwerfen</button>
+    </div>
+    <div class="note" id="xstat"></div>
+  </div>
+  <div class="foot"><a href="#">← Zurück zur Fahrer-Ansicht</a></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js" defer></script>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const eur=c=>(typeof c==="number"&&isFinite(c))?(c/100).toFixed(2).replace(".",",")+" €":"";
+const toCent=s=>{s=String(s||"").replace("€","").replace(/\s/g,"").replace(",",".");if(!s)return null;const n=Number(s);return isFinite(n)?Math.round(n*100):null};
+
+/* ---- kleiner IndexedDB-Speicher (Entwurf + Cache) ---- */
+const idb={
+  open:()=>new Promise((ok,no)=>{const r=indexedDB.open("leergut",1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}),
+  async get(k){try{const d=await this.open();return await new Promise((ok,no)=>{const r=d.transaction("kv").objectStore("kv").get(k);r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)})}catch(e){return undefined}},
+  async set(k,v){try{const d=await this.open();await new Promise((ok,no)=>{const t=d.transaction("kv","readwrite");t.objectStore("kv").put(v,k);t.oncomplete=ok;t.onerror=()=>no(t.error)})}catch(e){}},
+  async del(k){try{const d=await this.open();await new Promise((ok,no)=>{const t=d.transaction("kv","readwrite");t.objectStore("kv").delete(k);t.oncomplete=ok;t.onerror=()=>no(t.error)})}catch(e){}}
+};
+
+let list=[],isDraft=false;
+const clean=a=>Array.isArray(a)?a.filter(e=>e&&e.nr&&e.name).map(e=>({nr:String(e.nr),name:String(e.name),pfand:typeof e.pfand==="number"?e.pfand:null,merk:String(e.merk||""),refs:Array.isArray(e.refs)?e.refs.filter(r=>Array.isArray(r)&&r.length>100):[]})):[];
+
+async function persist(){isDraft=true;await idb.set("draft",list);renderAdmin()}
+
+/* ---- Modell ---- */
+let model=null,modelP=null;
+function loadModel(){
+  if(modelP)return modelP;
+  modelP=(async()=>{
+    for(let i=0;i<150&&!(window.tf&&window.mobilenet);i++)await new Promise(r=>setTimeout(r,100));
+    if(!(window.tf&&window.mobilenet))throw new Error("Bildmodell konnte nicht geladen werden (Internet?)");
+    model=await mobilenet.load({version:2,alpha:1.0});
+    return model;
+  })().catch(e=>{modelP=null;throw e});
+  return modelP;
+}
+async function embed(file){
+  const m=await loadModel();
+  const bmp=await createImageBitmap(file);
+  const c=document.createElement("canvas");c.width=c.height=224;
+  c.getContext("2d").drawImage(bmp,0,0,224,224);
+  const t=m.infer(c,true);const a=Array.from(await t.data());t.dispose();
+  let n=Math.hypot(...a)||1;
+  return a.map(v=>Number((v/n).toPrecision(3)));
+}
+function dot(a,b){let s=0;const n=Math.min(a.length,b.length);for(let i=0;i<n;i++)s+=a[i]*b[i];return s}
+function norm(a){const n=Math.hypot(...a)||1;return a.map(v=>v/n)}
+
+/* ---- Fahrer: Erkennung ---- */
+function hitHtml(e,top,extra){
+  return `<div class="hit ${top?"top":""}">${extra&&extra.unsure?'<span class="unsure">unsicher, bitte prüfen</span>':""}
+  <div class="grid"><div><div class="lbl">Leergutnummer</div><div class="nr">${esc(e.nr)}</div></div>${e.pfand!=null?`<div><div class="lbl" style="text-align:right">Pfand</div><div class="pf">${eur(e.pfand)}</div></div>`:""}</div>
+  <div class="nm">${esc(e.name)}</div>${extra&&extra.why?`<div class="why">${esc(extra.why)}</div>`:""}</div>`;
+}
+async function analyse(file){
+  const st=$("status"),res=$("result");res.innerHTML="";
+  const cands=list.filter(e=>e.refs.length);
+  if(!cands.length){st.innerHTML='<span class="warn">Noch keine Referenzfotos hinterlegt. Bitte unten die Suche nutzen.</span>';return}
+  $("shoot").classList.add("busy");
+  st.textContent=model?"Kiste wird erkannt …":"Erkennung wird geladen (einmalig, dauert etwas) …";
+  try{
+    const q=await embed(file);
+    const sc=cands.map(e=>({e,s:Math.max(...e.refs.map(r=>dot(q,norm(r))))})).sort((a,b)=>b.s-a.s).slice(0,3);
+    const gap=sc.length>1?sc[0].s-sc[1].s:1;
+    st.textContent=sc.length>1?"Bester Treffer zuerst:":"";
+    res.innerHTML=sc.map((x,k)=>hitHtml(x.e,k===0,{unsure:k===0?(x.s<0.6||gap<0.03):x.s<0.6,why:"Ähnlichkeit "+Math.round(x.s*100)+" %"})).join("");
+  }catch(e){st.innerHTML='<span class="warn">'+esc(e&&e.message||"Das hat nicht geklappt. Bitte noch mal versuchen.")+'</span>'}
+  finally{$("shoot").classList.remove("busy")}
+}
+$("cam").onchange=e=>{const f=e.target.files[0];e.target.value="";if(f)analyse(f)};
+$("gal").onchange=e=>{const f=e.target.files[0];e.target.value="";if(f)analyse(f)};
+function search(){
+  const q=$("q").value.trim().toLowerCase();
+  if(!q){$("qres").innerHTML="";return}
+  const r=list.filter(e=>(e.nr+" "+e.name+" "+e.merk).toLowerCase().includes(q)).slice(0,6);
+  $("qres").innerHTML=r.length?r.map(e=>hitHtml(e,false)).join(""):'<div class="note">Nichts gefunden.</div>';
+}
+$("q").oninput=search;
+
+/* ---- Pflege ---- */
+function renderAdmin(){
+  $("cnt").textContent=list.length;
+  $("draftinfo").innerHTML=isDraft?'<b class="warn">Entwurf auf diesem Gerät – noch nicht veröffentlicht.</b>':"Stand: veröffentlichte Liste.";
+  $("tbl").innerHTML=list.length?list.map((e,i)=>`<div class="ent"><div class="h"><b>${esc(e.nr)}</b><span>${esc(e.name)}${e.merk?`<small>${esc(e.merk)}</small>`:""}</span><em>${eur(e.pfand)}</em></div>
+  <div class="act"><span class="refs ${e.refs.length?"":"none"}">${e.refs.length} Foto${e.refs.length===1?"":"s"}</span>
+  <label class="btn">+ Foto<input type="file" accept="image/*" capture="environment" data-add="${i}" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:100px"></label>
+  ${e.refs.length?`<button class="x" data-clr="${i}">Fotos löschen</button>`:""}<button class="x" data-del="${i}">Eintrag löschen</button></div></div>`).join(""):'<div class="note">Noch keine Einträge.</div>';
+}
+$("tbl").addEventListener("click",async e=>{
+  const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.del!=null){if(!confirm("Eintrag löschen?"))return;list.splice(Number(b.dataset.del),1)}
+  else if(b.dataset.clr!=null){list[Number(b.dataset.clr)].refs=[]}
+  else return;
+  await persist();
+});
+$("tbl").addEventListener("change",async e=>{
+  const inp=e.target.closest("input[data-add]");if(!inp||!inp.files[0])return;
+  const f=inp.files[0],i=Number(inp.dataset.add);inp.value="";
+  $("astat").textContent="Foto wird verarbeitet …";
+  try{list[i].refs.push(await embed(f));await persist();$("astat").textContent="Foto gespeichert."}
+  catch(err){$("astat").textContent=err&&err.message||"Foto konnte nicht verarbeitet werden."}
+});
+$("add").onclick=async()=>{
+  const nr=$("n_nr").value.trim(),name=$("n_nm").value.trim(),pf=toCent($("n_pf").value);
+  if(!nr||!name){$("astat").textContent="Bitte Nummer und Bezeichnung ausfüllen.";return}
+  if($("n_pf").value.trim()&&pf===null){$("astat").textContent="Pfand bitte als Betrag eingeben, z. B. 3,10.";return}
+  if(list.some(e=>e.nr===nr)){$("astat").textContent="Diese Nummer gibt es schon.";return}
+  list.push({nr,name,pfand:pf,merk:$("n_mk").value.trim(),refs:[]});
+  $("n_nr").value=$("n_nm").value=$("n_pf").value=$("n_mk").value="";
+  await persist();$("astat").textContent="Eintrag angelegt. Jetzt unten Fotos hinzufügen.";
+};
+$("impadd").onclick=async()=>{
+  const rows=$("imp").value.split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map(l=>{const p=l.split(/\t|;/).map(x=>x.trim());return{nr:p[0]||"",name:p[1]||"",pfand:toCent(p[2]),merk:p.slice(3).join(" ").trim()}}).filter(r=>r.nr&&r.name&&!/^nummer$/i.test(r.nr));
+  if(!rows.length){$("istat").textContent="Keine gültigen Zeilen gefunden.";return}
+  let neu=0,upd=0;
+  rows.forEach(r=>{const ex=list.find(e=>e.nr===r.nr);if(ex){ex.name=r.name;ex.pfand=r.pfand;ex.merk=r.merk;upd++}else{list.push({...r,refs:[]});neu++}});
+  await persist();$("imp").value="";$("istat").textContent=neu+" neu, "+upd+" aktualisiert.";
+};
+$("dl").onclick=()=>{
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(list)],{type:"application/json"}));a.download="data.json";a.click();
+  $("xstat").textContent="Heruntergeladen. Jetzt im GitHub-Repository die vorhandene data.json durch diese Datei ersetzen.";
+};
+$("load").onchange=async e=>{
+  const f=e.target.files[0];e.target.value="";if(!f)return;
+  try{list=clean(JSON.parse(await f.text()));await persist();$("xstat").textContent="Datei geladen: "+list.length+" Einträge."}catch(err){$("xstat").textContent="Datei nicht lesbar."}
+};
+$("reset").onclick=async()=>{if(!confirm("Entwurf auf diesem Gerät verwerfen?"))return;await idb.del("draft");isDraft=false;await loadPublished();renderAdmin();search()};
+
+/* ---- Laden ---- */
+async function loadPublished(){
+  try{
+    const r=await fetch("data.json?"+Date.now(),{cache:"no-store"});
+    if(!r.ok)throw 0;
+    list=clean(await r.json());idb.set("published",list);
+  }catch(e){
+    list=clean(await idb.get("published"));
+    if(!list.length)$("status").textContent="Liste nicht erreichbar.";
+  }
+}
+function route(){
+  const admin=location.hash==="#pflege";
+  $("admin").classList.toggle("hidden",!admin);$("driver").classList.toggle("hidden",admin);
+  window.scrollTo(0,0);
+}
+window.addEventListener("hashchange",route);
+(async()=>{
+  route();
+  const d=clean(await idb.get("draft"));
+  if(location.hash==="#pflege"&&d.length){list=d;isDraft=true}
+  else{await loadPublished();if(d.length&&!list.length){list=d;isDraft=true}}
+  renderAdmin();search();
+  const dr=await idb.get("draft");
+  if(dr&&dr.length&&!isDraft){isDraft=false}
+  /* Modell im Hintergrund vorladen */
+  loadModel().catch(()=>{});
+})();
+</script>
+</body>
+</html>
